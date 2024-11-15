@@ -1,0 +1,189 @@
+<!DOCTYPE html>  
+<html lang="es">  
+<head>  
+    <meta charset="UTF-8">  
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">  
+    <title>Gestión de Inventario</title>  
+    <style>  
+        body {  
+            font-family: Arial, sans-serif;  
+            margin: 20px;  
+            background-color: #1c1c1c;  
+            color: white;  
+        }  
+        table {  
+            margin-top: 20px;  
+            border-collapse: collapse;  
+            width: 100%;  
+        }  
+        th, td {  
+            border: 1px solid #444;  
+            padding: 8px;  
+            text-align: center;  
+        }  
+        th {  
+            background-color: #333;  
+        }  
+        .total {  
+            margin-top: 20px;  
+            font-weight: bold;  
+        }  
+        .form-container {  
+            margin: 20px 0;  
+        }  
+        button {  
+            padding: 10px 15px;  
+            background-color: #007bff;  
+            border: none;  
+            color: white;  
+            cursor: pointer;  
+        }  
+        button:hover {  
+            background-color: #0056b3;  
+        }  
+        .inventory-container {  
+            margin-top: 30px;  
+        }  
+    </style>  
+</head>  
+<body>  
+    <h1>Gestión de Inventario</h1>  
+    
+    <div class="form-container">  
+        <h2>Agregar Producto Nuevo</h2>  
+        <input type="text" id="nombreProducto" placeholder="Nombre del Producto" required>  
+        <input type="number" id="precioProducto" placeholder="Precio (GTQ)" required>  
+        <input type="number" id="cantidadProducto" placeholder="Cantidad" required>  
+        <button onclick="agregarProducto()">Agregar Producto</button>  
+    </div>  
+
+    <div class="inventory-container">  
+        <h2>Inventario de Productos</h2>  
+        <table>  
+            <thead>  
+                <tr>  
+                    <th>Producto</th>  
+                    <th>Precio (GTQ)</th>  
+                    <th>Cantidad Disponible</th>  
+                    <th>Cantidad a Vender</th>  
+                    <th>Acción</th>  
+                </tr>  
+            </thead>  
+            <tbody id="product-list">  
+                <!-- Aquí aparecerán los productos -->  
+            </tbody>  
+        </table>  
+        <div class="total">  
+            Total de Ventas: <span id="total-ventas">0 GTQ</span>  
+        </div>  
+        <button onclick="reiniciarVentas()">Reiniciar Ventas</button>  
+    </div>  
+
+    <script>  
+        let totalVentas = 0;  
+
+        // Cargar datos desde localStorage al iniciar  
+        window.onload = function() {  
+            const storedProducts = JSON.parse(localStorage.getItem('products')) || [];  
+            totalVentas = parseFloat(localStorage.getItem('totalVentas')) || 0;  
+
+            // Cargar el total de ventas  
+            document.getElementById('total-ventas').innerText = `${totalVentas.toFixed(2)} GTQ`;  
+
+            // Cargar productos  
+            storedProducts.forEach(product => {  
+                agregarProductoDesdeStorage(product.nombre, product.precio, product.cantidad);  
+            });  
+        };  
+
+        function agregarProducto() {  
+            const nombre = document.getElementById('nombreProducto').value.trim();  
+            const precio = parseFloat(document.getElementById('precioProducto').value);  
+            const cantidad = parseInt(document.getElementById('cantidadProducto').value);  
+
+            if (nombre && !isNaN(precio) && !isNaN(cantidad) && cantidad > 0) {  
+                // Crear un nuevo producto  
+                const producto = { nombre, precio, cantidad };  
+                agregarProductoDesdeStorage(nombre, precio, cantidad);  
+                
+                // Obtener productos almacenados  
+                const storedProducts = JSON.parse(localStorage.getItem('products')) || [];  
+                storedProducts.push(producto);  
+                localStorage.setItem('products', JSON.stringify(storedProducts));  
+
+                // Limpiar los campos  
+                document.getElementById('nombreProducto').value = '';  
+                document.getElementById('precioProducto').value = '';  
+                document.getElementById('cantidadProducto').value = '';  
+            } else {  
+                alert('Por favor, llena todos los campos correctamente.');  
+            }  
+        }  
+
+        function agregarProductoDesdeStorage(nombre, precio, cantidad) {  
+            const tableBody = document.getElementById('product-list');  
+            const row = document.createElement('tr');  
+            row.innerHTML = `  
+                <td>${nombre}</td>  
+                <td>${precio.toFixed(2)}</td>  
+                <td id="cantidad-${nombre.replace(/\s+/g, '-').toLowerCase()}">${cantidad}</td>  
+                <td><input type="number" min="1" placeholder="Cantidad a vender" id="cantidad-a-vender-${nombre.replace(/\s+/g, '-').toLowerCase()}"></td>  
+                <td>  
+                    <button onclick="venderProducto('${nombre}', ${precio}, 'cantidad-${nombre.replace(/\s+/g, '-').toLowerCase()}', 'cantidad-a-vender-${nombre.replace(/\s+/g, '-').toLowerCase()}')">Vender</button>  
+                    <button onclick="eliminarProducto(this, '${nombre}')">Eliminar</button>  
+                </td>  
+            `;  
+            tableBody.appendChild(row);  
+        }  
+
+        function venderProducto(nombre, precio, cantidadId, cantidadAVenderId) {  
+            const cantidadElement = document.getElementById(cantidadId);  
+            const cantidadAVenderElement = document.getElementById(cantidadAVenderId);  
+            const cantidadDisponible = parseInt(cantidadElement.innerText);  
+            const cantidadAVender = parseInt(cantidadAVenderElement.value);  
+
+            if (isNaN(cantidadAVender) || cantidadAVender <= 0) {  
+                alert('Por favor, ingresa una cantidad válida para vender.');  
+                return;  
+            }  
+
+            if (cantidadAVender > cantidadDisponible) {  
+                alert('No hay suficiente cantidad disponible para vender.');  
+                return;  
+            }  
+
+            // Actualizar cantidad disponible  
+            cantidadElement.innerText = cantidadDisponible - cantidadAVender;  
+
+            // Actualizar total de ventas  
+            totalVentas += precio * cantidadAVender;  
+            document.getElementById('total-ventas').innerText = `${totalVentas.toFixed(2)} GTQ`;  
+            alert(`Has vendido ${cantidadAVender} unidades de ${nombre} por un total de ${(precio * cantidadAVender).toFixed(2)} GTQ.`);  
+            cantidadAVenderElement.value = ''; // Limpiar el campo de cantidad a vender  
+
+            // Guardar el total de ventas en localStorage  
+            localStorage.setItem('totalVentas', totalVentas);  
+        }  
+
+        function eliminarProducto(button, nombre) {  
+            const row = button.parentNode.parentNode; // Obtiene la fila del producto  
+            row.parentNode.removeChild(row); // Elimina la fila de la tabla  
+
+            // Actualizar localStorage  
+            let storedProducts = JSON.parse(localStorage.getItem('products')) || [];  
+            storedProducts = storedProducts.filter(product => product.nombre !== nombre);  
+            localStorage.setItem('products', JSON.stringify(storedProducts));  
+
+            alert('Producto eliminado del inventario.');  
+        }  
+
+        function reiniciarVentas() {  
+            totalVentas = 0;  
+            document.getElementById('total-ventas').innerText = '0 GTQ';  
+            localStorage.setItem('totalVentas', totalVentas);  
+            alert('Las ventas han sido reiniciadas.');  
+        }  
+
+    </script>  
+</body>  
+</html>
